@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Radar,
   Users,
   KanbanSquare,
   FileText,
   Send,
+  CalendarClock,
   BarChart3,
   Bot,
   Briefcase,
@@ -16,10 +18,12 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/lead-finder", label: "Lead Finder", icon: Radar },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/crm", label: "CRM Pipeline", icon: KanbanSquare },
   { href: "/proposals", label: "Proposals", icon: FileText },
   { href: "/outreach", label: "Outreach", icon: Send },
+  { href: "/meetings", label: "Meetings", icon: CalendarClock },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/assistant", label: "AI Assistant", icon: Bot },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },

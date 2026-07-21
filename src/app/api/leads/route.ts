@@ -1,10 +1,9 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Lead } from "@/models/Lead";
-import { Business } from "@/models/Business";
 import { requireAuth, ok, fail } from "@/lib/api";
 import { leadCreateSchema } from "@/lib/validation";
-import { analyzeWebsite, detectOpportunity } from "@/lib/ai/analysis";
+import { createLead } from "@/lib/leads";
 import type { BusinessType } from "@/types";
 
 export async function GET(req: NextRequest) {
@@ -49,56 +48,19 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const d = parsed.data;
-    const type = d.businessType as BusinessType;
-
-    const business = await Business.create({
-      owner: auth.sub,
-      name: d.businessName,
-      ownerName: d.contactName,
-      type,
-      website: d.website,
-      email: d.email,
-      phone: d.phone,
-      googleRating: d.googleRating,
-      reviewsCount: d.reviewsCount,
-      location: { city: d.city, country: "India" },
-      source: "manual",
-    });
-
-    const { scores, issues } = analyzeWebsite({
-      website: d.website,
-      googleRating: d.googleRating,
-      reviewsCount: d.reviewsCount,
-    });
-    const opp = detectOpportunity({
-      businessType: type,
-      scores,
-      issues,
-      googleRating: d.googleRating,
-      reviewsCount: d.reviewsCount,
-    });
-
-    const lead = await Lead.create({
-      owner: auth.sub,
-      business: business._id,
+    const lead = await createLead(auth.sub, {
       businessName: d.businessName,
-      businessType: type,
+      businessType: d.businessType as BusinessType,
       contactName: d.contactName,
       email: d.email,
       phone: d.phone,
       website: d.website,
       city: d.city,
-      stage: "new",
-      priority: opp.priority,
-      scores,
-      issues,
-      suggestedServices: opp.suggestedServices,
-      estimatedValue: opp.estimatedValue,
-      closingProbability: opp.closingProbability,
-      aiReasoning: opp.reasoning,
+      googleRating: d.googleRating,
+      reviewsCount: d.reviewsCount,
       notes: d.notes,
+      source: "manual",
     });
-
     return ok(lead, 201);
   } catch (err) {
     console.error(err);
