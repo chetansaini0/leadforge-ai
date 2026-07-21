@@ -51,8 +51,8 @@ function OutreachInner() {
   const { data: leads } = useLeads();
   const [leadId, setLeadId] = useState(params.get("lead") ?? "");
   const [channel, setChannel] = useState("email");
-  const [kind, setKind] = useState("cold");
-  const [step, setStep] = useState("1");
+  const [kind, setKind] = useState(params.get("kind") ?? "cold");
+  const [step, setStep] = useState(params.get("step") || "1");
   const [result, setResult] = useState<GenResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

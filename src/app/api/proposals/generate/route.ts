@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       hasWebsite: Boolean(lead.website),
     });
 
+    const publicId = crypto.randomUUID().replace(/-/g, "").slice(0, 14);
     const proposal = await Proposal.create({
       owner: auth.sub,
       lead: lead._id,
@@ -46,10 +47,12 @@ export async function POST(req: NextRequest) {
       price: result.price,
       content: result.content,
       generatedBy: result.generatedBy,
+      publicId,
     });
 
     return ok({
       id: String(proposal._id),
+      publicId,
       content: result.content,
       generatedBy: result.generatedBy,
       portfolios: result.portfolios,

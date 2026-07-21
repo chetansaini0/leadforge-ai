@@ -17,6 +17,18 @@ const ProposalSchema = new Schema(
     portfolioRefs: [{ type: Schema.Types.ObjectId, ref: "Portfolio" }],
     content: { type: String, required: true },
     generatedBy: { type: String, enum: ["ai", "template"], default: "template" },
+
+    // Sharing + engagement tracking
+    publicId: { type: String, unique: true, sparse: true, index: true },
+    status: {
+      type: String,
+      enum: ["draft", "sent", "viewed", "accepted", "rejected"],
+      default: "draft",
+      index: true,
+    },
+    sentAt: { type: Date, default: null },
+    viewedAt: { type: Date, default: null },
+    viewCount: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
