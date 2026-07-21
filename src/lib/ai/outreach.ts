@@ -17,6 +17,11 @@ export type OutreachInput = {
   businessType: BusinessType;
   issues: string[];
   step: number;
+  city?: string;
+  scores?: { overall: number; seo: number; mobile: number; speed: number; design: number; conversion: number };
+  suggestedServices?: string[];
+  googleRating?: number;
+  hasWebsite?: boolean;
 };
 
 export type OutreachResult = {
@@ -49,10 +54,17 @@ export async function generateOutreach(
   const user = [
     `Channel: ${channel}. Goal: ${KIND_ANGLE[kind]}.`,
     kind === "followup" ? `This is ${FOLLOWUP_LABEL[Math.min(input.step, 4)] || "a follow-up"}.` : "",
-    `Business: ${input.businessName} (${input.businessType}).`,
+    `Business: ${input.businessName}${input.city ? `, ${input.city}` : ""} (${input.businessType}).`,
     input.contactName ? `Contact: ${input.contactName}.` : "",
+    input.hasWebsite === false ? "They have no website yet — lead with that gap." : "",
+    typeof input.googleRating === "number" && input.googleRating > 0
+      ? `They have a ${input.googleRating}★ Google rating — reference their good reputation naturally.`
+      : "",
+    input.scores ? `Their site scores ${input.scores.overall}/100 overall (open with one concrete weak point).` : "",
     input.issues.length ? `Detected issues: ${input.issues.join(", ")}.` : "",
+    input.suggestedServices?.length ? `Services to hint at: ${input.suggestedServices.slice(0, 2).join(", ")}.` : "",
     p ? `Reference this real project only: ${p.name} (${p.liveUrl}).` : "",
+    "Keep it under 120 words. Be specific, not generic. No fake urgency.",
     channel === "email" ? "Return a subject line prefixed with 'Subject:' then the body." : "Return only the message body.",
     "Sign as Chetan.",
   ]

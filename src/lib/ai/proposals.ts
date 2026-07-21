@@ -12,6 +12,12 @@ export type ProposalInput = {
   timelineWeeks: number;
   price: number;
   city: string;
+  /** Optional lead intelligence for more specific copy. */
+  scores?: { seo: number; mobile: number; speed: number; design: number; conversion: number; overall: number };
+  suggestedServices?: string[];
+  googleRating?: number;
+  reviewsCount?: number;
+  hasWebsite?: boolean;
 };
 
 export type ProposalResult = {
@@ -100,11 +106,23 @@ function buildPrompt(
     email: "a cold email with a subject line (prefix 'Subject:') and a short body",
     linkedin: "a concise LinkedIn connection/DM message under 80 words",
   };
+  const weakest = input.scores ? weakestAreas(input.scores) : [];
   return [
     `Write ${format[variant]}.`,
     `Business: ${input.businessName}${input.city ? `, ${input.city}` : ""} (${input.businessType}).`,
     input.contactName ? `Contact person: ${input.contactName}.` : "",
+    input.hasWebsite === false
+      ? "They have NO website yet — emphasise starting from a strong, conversion-ready foundation."
+      : "",
+    typeof input.googleRating === "number" && input.googleRating > 0
+      ? `They have a ${input.googleRating}★ Google rating${input.reviewsCount ? ` from ${input.reviewsCount} reviews` : ""} — acknowledge their existing reputation and how a better site will convert that trust into bookings/enquiries.`
+      : "",
+    input.scores
+      ? `Current site health (0-100): overall ${input.scores.overall}, SEO ${input.scores.seo}, mobile ${input.scores.mobile}, speed ${input.scores.speed}, design ${input.scores.design}, conversion ${input.scores.conversion}.`
+      : "",
+    weakest.length ? `Focus the pitch on their weakest areas: ${weakest.join(", ")}.` : "",
     input.issues.length ? `Problems detected on their current web presence: ${input.issues.join(", ")}.` : "",
+    input.suggestedServices?.length ? `Recommended services to position: ${input.suggestedServices.join(", ")}.` : "",
     `Offer: ${input.service}.`,
     `Timeline: ${input.timelineWeeks} weeks. Investment: ${formatCurrency(input.price)}.`,
     `Reference these REAL portfolio projects (use only these, do not invent others):\n${port}`,
@@ -112,6 +130,22 @@ function buildPrompt(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** Human-readable weakest scoring dimensions (score < 60), worst first. */
+function weakestAreas(scores: NonNullable<ProposalInput["scores"]>): string[] {
+  const labels: Record<string, string> = {
+    seo: "SEO / search visibility",
+    mobile: "mobile experience",
+    speed: "page speed",
+    design: "visual design",
+    conversion: "conversion / lead capture",
+  };
+  return (Object.entries(scores) as [string, number][])
+    .filter(([k, v]) => k !== "overall" && v < 60)
+    .sort((a, b) => a[1] - b[1])
+    .map(([k]) => labels[k])
+    .filter(Boolean);
 }
 
 function template(
@@ -146,9 +180,19 @@ function template(
         ``,
         `1) Understanding your situation`,
         `${greeting}, I looked at ${input.businessName}${input.city ? ` in ${input.city}` : ""}. ${
-          input.issues.length
-            ? `A few things stood out: ${input.issues.join(", ")}.`
-            : `There's a clear opportunity to convert more visitors into customers.`
+          input.hasWebsite === false
+            ? `You don't have a website yet — which means potential customers searching online can't find or trust you the way they could.`
+            : input.scores
+              ? `Your current site scores ${input.scores.overall}/100 overall${
+                  input.issues.length ? `, and a few things stood out: ${input.issues.join(", ")}.` : "."
+                }`
+              : input.issues.length
+                ? `A few things stood out: ${input.issues.join(", ")}.`
+                : `There's a clear opportunity to convert more visitors into customers.`
+        }${
+          typeof input.googleRating === "number" && input.googleRating > 0
+            ? ` Your ${input.googleRating}★ Google reputation is a real asset — the goal is to turn that trust into bookings and enquiries.`
+            : ""
         }`,
         ``,
         `2) Proposed solution`,

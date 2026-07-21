@@ -5,6 +5,7 @@ import { Outreach } from "@/models/Outreach";
 import { requireAuth, ok, fail, rateLimit } from "@/lib/api";
 import { outreachSchema } from "@/lib/validation";
 import { generateOutreach } from "@/lib/ai/outreach";
+import { appBaseUrl, trackingPixelUrl, emailHtmlWithPixel } from "@/lib/tracking";
 import type { BusinessType } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -26,11 +27,17 @@ export async function POST(req: NextRequest) {
       businessType: (lead.businessType ?? "other") as BusinessType,
       issues: lead.issues ?? [],
       step: parsed.data.step,
+      city: lead.city ?? "",
+      scores: lead.scores,
+      suggestedServices: lead.suggestedServices,
+      googleRating: lead.googleRating,
+      hasWebsite: Boolean(lead.website),
     });
 
     const doc = await Outreach.create({
       owner: auth.sub,
       lead: lead._id,
+      businessName: lead.businessName,
       channel: parsed.data.channel,
       kind: parsed.data.kind,
       subject: result.subject,
@@ -39,11 +46,17 @@ export async function POST(req: NextRequest) {
       generatedBy: result.generatedBy,
     });
 
+    const id = String(doc._id);
+    const isEmail = parsed.data.channel === "email";
+    const pixelUrl = isEmail ? trackingPixelUrl(appBaseUrl(), id) : "";
+    const trackingHtml = isEmail ? emailHtmlWithPixel(result.body, pixelUrl) : "";
+
     return ok({
-      id: String(doc._id),
+      id,
       subject: result.subject,
       body: result.body,
       generatedBy: result.generatedBy,
+      trackingHtml,
     });
   } catch (err) {
     console.error(err);

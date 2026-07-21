@@ -29,6 +29,11 @@ export async function POST(req: NextRequest) {
       timelineWeeks: parsed.data.timelineWeeks,
       price: parsed.data.price || lead.estimatedValue || 0,
       city: lead.city ?? "",
+      scores: lead.scores,
+      suggestedServices: lead.suggestedServices,
+      googleRating: lead.googleRating,
+      reviewsCount: lead.reviewsCount,
+      hasWebsite: Boolean(lead.website),
     });
 
     const proposal = await Proposal.create({

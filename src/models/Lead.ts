@@ -26,6 +26,8 @@ const LeadSchema = new Schema(
     phone: { type: String, default: "" },
     website: { type: String, default: "" },
     city: { type: String, default: "" },
+    googleRating: { type: Number, default: 0 },
+    reviewsCount: { type: Number, default: 0 },
 
     stage: { type: String, enum: PIPELINE_STAGES, default: "new", index: true },
     priority: { type: String, enum: ["low", "medium", "high", "hot"], default: "medium", index: true },
@@ -57,6 +59,8 @@ export type LeanLead = {
   phone?: string;
   website?: string;
   city?: string;
+  googleRating?: number;
+  reviewsCount?: number;
   stage: string;
   priority: "low" | "medium" | "high" | "hot";
   scores?: { seo: number; mobile: number; speed: number; design: number; conversion: number; overall: number };

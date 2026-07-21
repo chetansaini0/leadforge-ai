@@ -54,6 +54,8 @@ export async function createLead(owner: string, input: LeadInput) {
     phone: input.phone ?? "",
     website: input.website ?? "",
     city: input.city ?? "",
+    googleRating: rating,
+    reviewsCount: reviews,
     stage: "new",
     priority: opp.priority,
     scores,

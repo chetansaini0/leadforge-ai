@@ -4,6 +4,7 @@ const OutreachSchema = new Schema(
   {
     owner: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     lead: { type: Schema.Types.ObjectId, ref: "Lead", required: true, index: true },
+    businessName: { type: String, default: "" },
     channel: { type: String, enum: ["email", "whatsapp", "linkedin"], default: "email" },
     kind: {
       type: String,
@@ -21,6 +22,7 @@ const OutreachSchema = new Schema(
     },
     sentAt: { type: Date, default: null },
     openedAt: { type: Date, default: null },
+    openCount: { type: Number, default: 0 },
     repliedAt: { type: Date, default: null },
     generatedBy: { type: String, enum: ["ai", "template"], default: "template" },
   },

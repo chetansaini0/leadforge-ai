@@ -1,0 +1,10 @@
+feat: Phase 3 - richer AI copy + email open-tracking
+
+- Proposals & outreach now use full lead context: site scores, weakest
+  areas, suggested services, Google rating, and no-website detection
+- Persist googleRating/reviewsCount on the Lead snapshot for reuse
+- Email open-tracking: public 1x1 GIF pixel endpoint records first open
+  + open count without leaking id existence
+- "Copy tracked HTML" for emails (pixel-embedded) to paste into Gmail
+- Outreach history API (list + mark sent/replied + delete)
+- Outreach page: sent & tracking dashboard with live open status

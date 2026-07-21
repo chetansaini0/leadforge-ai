@@ -2,10 +2,12 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Copy, Check, Send } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Copy, Check, Send, Code2, MailOpen, Reply, Trash2, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useLeads } from "@/hooks/useLeads";
 import { api } from "@/lib/fetcher";
 
@@ -19,27 +21,75 @@ const KINDS = [
   { id: "closing", label: "Closing nudge" },
 ];
 
+type GenResult = { id: string; subject: string; body: string; generatedBy: string; trackingHtml: string };
+
+type OutreachRow = {
+  _id: string;
+  businessName: string;
+  channel: string;
+  kind: string;
+  subject: string;
+  status: string;
+  sentAt: string | null;
+  openedAt: string | null;
+  openCount: number;
+  repliedAt: string | null;
+  createdAt: string;
+};
+
+const STATUS_TONE: Record<string, string> = {
+  draft: "bg-slate-500/15 text-slate-400",
+  sent: "bg-blue-500/15 text-blue-400",
+  opened: "bg-amber-500/15 text-amber-500",
+  replied: "bg-emerald-500/15 text-emerald-500",
+  bounced: "bg-red-500/15 text-red-400",
+};
+
 function OutreachInner() {
   const params = useSearchParams();
+  const qc = useQueryClient();
   const { data: leads } = useLeads();
   const [leadId, setLeadId] = useState(params.get("lead") ?? "");
   const [channel, setChannel] = useState("email");
   const [kind, setKind] = useState("cold");
   const [step, setStep] = useState("1");
-  const [result, setResult] = useState<{ subject: string; body: string; generatedBy: string } | null>(null);
+  const [result, setResult] = useState<GenResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"text" | "html" | null>(null);
+
+  const { data: history } = useQuery({
+    queryKey: ["outreach"],
+    queryFn: () => api<OutreachRow[]>("/api/outreach"),
+  });
+
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api(`/api/outreach/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["outreach"] });
+      qc.invalidateQueries({ queryKey: ["analytics"] });
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: (id: string) => api(`/api/outreach/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["outreach"] });
+      qc.invalidateQueries({ queryKey: ["analytics"] });
+    },
+  });
 
   async function generate() {
     if (!leadId) { setError("Pick a lead first."); return; }
     setLoading(true); setError(""); setResult(null);
     try {
-      const data = await api<{ subject: string; body: string; generatedBy: string }>("/api/outreach/generate", {
+      const data = await api<GenResult>("/api/outreach/generate", {
         method: "POST",
         body: JSON.stringify({ leadId, channel, kind, step: Number(step) || 0 }),
       });
       setResult(data);
+      qc.invalidateQueries({ queryKey: ["outreach"] });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -47,12 +97,27 @@ function OutreachInner() {
     }
   }
 
-  function copy() {
+  function copyText() {
     if (!result) return;
     const text = result.subject ? `Subject: ${result.subject}\n\n${result.body}` : result.body;
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopied("text");
+    setTimeout(() => setCopied(null), 1500);
+  }
+
+  async function copyHtml() {
+    if (!result?.trackingHtml) return;
+    try {
+      const item = new ClipboardItem({
+        "text/html": new Blob([result.trackingHtml], { type: "text/html" }),
+        "text/plain": new Blob([result.body], { type: "text/plain" }),
+      });
+      await navigator.clipboard.write([item]);
+    } catch {
+      await navigator.clipboard.writeText(result.trackingHtml);
+    }
+    setCopied("html");
+    setTimeout(() => setCopied(null), 1500);
   }
 
   return (
@@ -60,7 +125,7 @@ function OutreachInner() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Outreach Studio</h1>
         <p className="text-sm text-[var(--muted)]">
-          Generate personalized, review-before-you-send messages. Compliant: you send them manually.
+          Generate personalized, review-before-you-send messages. Paste the tracked HTML into Gmail to detect opens.
         </p>
       </div>
 
@@ -109,10 +174,18 @@ function OutreachInner() {
           <div className="flex items-center justify-between p-5 pb-0">
             <CardTitle>Output</CardTitle>
             {result && (
-              <Button variant="outline" size="sm" onClick={copy}>
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copied" : "Copy"}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={copyText}>
+                  {copied === "text" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied === "text" ? "Copied" : "Copy text"}
+                </Button>
+                {result.trackingHtml && (
+                  <Button variant="outline" size="sm" onClick={copyHtml}>
+                    {copied === "html" ? <Check className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
+                    {copied === "html" ? "Copied" : "Copy tracked HTML"}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
           <CardContent>
@@ -124,11 +197,76 @@ function OutreachInner() {
                 </span>
                 {result.subject && <p className="mb-2 text-sm"><span className="text-[var(--muted)]">Subject: </span>{result.subject}</p>}
                 <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{result.body}</pre>
+                {result.trackingHtml && (
+                  <p className="mt-3 text-xs text-[var(--muted)]">
+                    Tip: use &ldquo;Copy tracked HTML&rdquo;, then in Gmail paste into the body. When the recipient
+                    loads images, the message is marked <strong>opened</strong> below.
+                  </p>
+                )}
               </>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sent &amp; tracking</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(history?.length ?? 0) === 0 && (
+            <p className="text-sm text-[var(--muted)]">No messages generated yet.</p>
+          )}
+          <div className="space-y-2">
+            {history?.map((o) => (
+              <div
+                key={o._id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">{o.businessName || "Lead"}</p>
+                    <Badge className={STATUS_TONE[o.status] ?? ""}>{o.status}</Badge>
+                    <span className="text-xs capitalize text-[var(--muted)]">{o.channel} · {o.kind.replace("_", " ")}</span>
+                  </div>
+                  <p className="truncate text-xs text-[var(--muted)]">
+                    {o.subject || o.channel + " message"}
+                    {o.openCount > 0 && ` · opened ${o.openCount}×`}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {o.status === "draft" && (
+                    <button
+                      title="Mark sent"
+                      onClick={() => setStatus.mutate({ id: o._id, status: "sent" })}
+                      className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-blue-400"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {o.status !== "replied" && (
+                    <button
+                      title="Mark replied"
+                      onClick={() => setStatus.mutate({ id: o._id, status: "replied" })}
+                      className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-emerald-500"
+                    >
+                      <Reply className="h-4 w-4" />
+                    </button>
+                  )}
+                  {o.openedAt && <MailOpen className="h-4 w-4 text-amber-500" />}
+                  <button
+                    title="Delete"
+                    onClick={() => del.mutate(o._id)}
+                    className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-red-400"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
