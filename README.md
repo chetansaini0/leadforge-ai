@@ -2,6 +2,9 @@
 
 An AI-powered lead generation, website analysis, proposal, outreach, and CRM platform for freelancers and agencies (web dev, SEO, AI automation). Built by Chetan Saini.
 
+> **This is the active LeadForge product** (`leadforge-ai`, MongoDB + JWT).  
+> Do **not** confuse with the older scaffold in `ai lead generator saas` (Supabase + Stripe) — that folder is frozen.
+
 > **Ethics & compliance:** LeadForge is built for *responsible* client acquisition. Lead discovery uses the official Google Places API (no grey-area scraping), and all outreach is **generate-and-review** — you approve and send messages yourself. It never fabricates reviews, testimonials, or client history.
 
 ## Features
